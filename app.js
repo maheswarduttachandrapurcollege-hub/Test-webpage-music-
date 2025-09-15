@@ -1,4 +1,17 @@
-// Ultra-optimized JavaScript for maximum performance
+// Fast video playback with auto-play support
+function playVideo(videoId, title, thumbnail, autoPlay = false) {
+  if (!apiReady || !player) return;
+  
+  try {
+    // Immediate UI update
+    updateNowPlaying(title, thumbnail);
+    
+    // Load and play video
+    if (autoPlay) {
+      player.loadVideoById(videoId);
+    } else {
+      player.cueVideoById(videoId);
+    // Ultra-optimized JavaScript for maximum performance
 'use strict';
 
 // Global state - minimal and efficient
@@ -314,22 +327,41 @@ document.addEventListener('keydown', (e) => {
   switch(e.code) {
     case 'Space':
       e.preventDefault();
-      if (player && apiReady) {
-        const state = player.getPlayerState();
-        if (state === YT.PlayerState.PLAYING) {
-          player.pauseVideo();
-        } else {
-          player.playVideo();
-        }
-      }
+      togglePlayPause();
       break;
     case 'ArrowRight':
       e.preventDefault();
-      playNext();
+      playNext(true);
       break;
     case 'ArrowLeft':
       e.preventDefault();
-      playPrevious();
+      playPrevious(true);
+      break;
+    case 'KeyS':
+      e.preventDefault();
+      toggleShuffle();
+      break;
+    case 'KeyR':
+      e.preventDefault();
+      toggleRepeat();
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      // Volume up
+      volume = Math.min(100, volume + 10);
+      if (player && apiReady) player.setVolume(volume);
+      const volumeSlider = getElement('volume-slider');
+      if (volumeSlider) volumeSlider.value = volume;
+      updateVolumeIcon();
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      // Volume down
+      volume = Math.max(0, volume - 10);
+      if (player && apiReady) player.setVolume(volume);
+      const volumeSliderDown = getElement('volume-slider');
+      if (volumeSliderDown) volumeSliderDown.value = volume;
+      updateVolumeIcon();
       break;
   }
 });
@@ -349,6 +381,7 @@ if (window.performance) {
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   if (searchTimer) clearTimeout(searchTimer);
+  if (progressTimer) clearInterval(progressTimer);
   if (player) player.destroy();
 });
 
@@ -356,3 +389,4 @@ window.addEventListener('beforeunload', () => {
 window.playVideo = playVideo;
 window.playNext = playNext;
 window.playPrevious = playPrevious;
+window.togglePlayPause = togglePlayPause;
