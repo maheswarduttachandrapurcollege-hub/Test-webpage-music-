@@ -1,313 +1,358 @@
-// Optimized Player & Queue with performance improvements
+// Ultra-optimized JavaScript for maximum performance
+'use strict';
+
+// Global state - minimal and efficient
 let player = null;
 let songQueue = [];
 let currentIndex = -1;
 let apiReady = false;
-let searchTimeout = null;
+let isLoading = false;
 
-function onYouTubeIframeAPIReady(){
-  apiReady = true;
-  player = new YT.Player('yt-player', {
-    width: '100%',
-    height: '100%',
-    playerVars: {
-      autoplay: 0,
-      controls: 1,
-      rel: 0,
-      modestbranding: 1,
-      iv_load_policy: 3,
-      playsinline: 1
-    },
-    events: {
-      onStateChange: onPlayerStateChange,
-      onReady: onPlayerReady
-    }
-  });
-}
+// API Configuration
+const API_KEY = "AIzaSyCHd0jZWIldZtpl0UzbJUs4dcPO2ZmA-Ho";
+const MAX_RESULTS = 12; // Reduced for faster loading
 
-function onPlayerReady(event) {
-  // Player is ready, can now perform actions
-}
-
-function onPlayerStateChange(e){
-  if (e && e.data === YT.PlayerState.ENDED){
-    requestAnimationFrame(() => playNext());
-  }
-}
-
-function setQueue(items, autoStartFirst){
-  songQueue = items.slice();
-  if (!songQueue.length) return;
-  currentIndex = 0;
-  const it = songQueue[0];
-  const vid = getVideoId(it);
-  const title = it.snippet?.title || "Untitled";
-  const thumb = it.snippet?.thumbnails?.high?.url || it.snippet?.thumbnails?.medium?.url;
-  updateNowPlaying(title, thumb);
-  if (apiReady && player){
-    if (autoStartFirst) player.loadVideoById(vid);
-    else player.cueVideoById(vid);
-  }
-}
-
-function playAtIndex(idx, autoplay=true){
-  if (!songQueue.length) return;
-  currentIndex = (idx + songQueue.length) % songQueue.length;
-  const it = songQueue[currentIndex];
-  const vid = getVideoId(it);
-  const title = it.snippet?.title || "Untitled";
-  const thumb = it.snippet?.thumbnails?.high?.url || it.snippet?.thumbnails?.medium?.url;
-  
-  // Smooth title and thumbnail updates
-  requestAnimationFrame(() => {
-    updateNowPlaying(title, thumb);
-    if (apiReady && player){
-      if (autoplay) player.loadVideoById(vid);
-      else player.cueVideoById(vid);
-    }
-  });
-}
-
-function playNext(){ 
-  requestAnimationFrame(() => playAtIndex(currentIndex + 1, true)); 
-}
-
-function playPrev(){ 
-  requestAnimationFrame(() => playAtIndex(currentIndex - 1, true)); 
-}
-
-function updateNowPlaying(title, thumb){
-  const titleEl = document.getElementById("song-title");
-  const thumbEl = document.getElementById("song-thumbnail");
-  
-  // Smooth transitions
-  titleEl.style.opacity = '0.7';
-  setTimeout(() => {
-    titleEl.innerText = title;
-    titleEl.style.opacity = '1';
-  }, 150);
-  
-  if (thumb) {
-    thumbEl.style.opacity = '0.7';
-    thumbEl.onload = () => {
-      thumbEl.style.opacity = '1';
-    };
-    thumbEl.src = thumb;
-  }
-}
-
-// CONFIG
-const apiKey = "AIzaSyCHd0jZWIldZtpl0UzbJUs4dcPO2ZmA-Ho";
-
-// Preload query pool (randomized per refresh)
-const PRELOAD_QUERIES = [
-  "lofi chill", "trending music", "bollywood hits", "edm 2025", "romantic songs",
-  "indie pop", "top hindi songs", "punjabi hits", "sad songs", "party mix"
+// Quick queries for instant loading
+const QUICK_QUERIES = [
+  "trending music", "top hits", "popular songs", "latest music",
+  "bollywood hits", "english songs", "party music", "chill music"
 ];
 
-// Debounced search function
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
+// YouTube API Ready
+function onYouTubeIframeAPIReady() {
+  apiReady = true;
+  try {
+    player = new YT.Player('yt-player', {
+      width: '100%',
+      height: '100%',
+      playerVars: {
+        autoplay: 0,
+        controls: 1,
+        rel: 0,
+        modestbranding: 1,
+        iv_load_policy: 3,
+        playsinline: 1,
+        start: 0
+      },
+      events: {
+        onStateChange: handlePlayerStateChange,
+        onReady: () => console.log('Player ready')
+      }
+    });
+  } catch (error) {
+    console.error('YouTube player error:', error);
+  }
 }
 
-const debouncedSearch = debounce(() => {
-  const q = document.getElementById("search").value.trim();
-  if (q) loadSongs(q, false);
-}, 300);
+// Handle player state changes efficiently
+function handlePlayerStateChange(event) {
+  if (event.data === YT.PlayerState.ENDED) {
+    setTimeout(() => playNext(), 100); // Small delay for smoother transition
+  }
+}
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Bind search with debouncing
-  document.getElementById("search-btn").addEventListener("click", () => {
-    const q = document.getElementById("search").value.trim();
-    if (q) loadSongs(q, false);
+// Ultra-fast DOM queries (cached)
+const elements = {};
+function getElement(id) {
+  if (!elements[id]) {
+    elements[id] = document.getElementById(id);
+  }
+  return elements[id];
+}
+
+// Optimized search with immediate feedback
+let searchTimer = null;
+function handleSearch(query = null) {
+  const searchInput = getElement('search');
+  const searchQuery = query || searchInput.value.trim();
+  
+  if (!searchQuery || isLoading) return;
+  
+  // Clear previous timer
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+  }
+  
+  // Immediate UI feedback
+  showLoading();
+  
+  // Debounced search
+  searchTimer = setTimeout(() => {
+    loadSongs(searchQuery);
+  }, 200); // Reduced debounce time
+}
+
+// Ultra-fast song loading
+async function loadSongs(query) {
+  if (isLoading) return;
+  isLoading = true;
+  
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${MAX_RESULTS}&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&key=${API_KEY}`;
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const data = await response.json();
+    const items = data.items || [];
+    
+    // Immediate rendering without waiting
+    requestAnimationFrame(() => {
+      renderResults(items);
+      if (items.length > 0) {
+        setCurrentSong(items[0]);
+      }
+    });
+    
+  } catch (error) {
+    console.error('Load error:', error);
+    showError();
+  } finally {
+    isLoading = false;
+  }
+}
+
+// Lightning-fast grid rendering
+function renderResults(items) {
+  const container = getElement('results');
+  
+  if (!items.length) {
+    container.innerHTML = '<div class="loading">No results found</div>';
+    return;
+  }
+  
+  // Use innerHTML for fastest rendering
+  const html = items.map(item => {
+    const videoId = item.id.videoId;
+    const title = item.snippet.title;
+    const thumbnail = item.snippet.thumbnails.medium?.url || '';
+    
+    return `
+      <div class="card" onclick="playVideo('${videoId}', '${escapeHtml(title)}', '${thumbnail}')">
+        <img class="thumb" src="${thumbnail}" alt="${escapeHtml(title)}" loading="lazy">
+        <div class="info">
+          <h3 class="title">${escapeHtml(title)}</h3>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  container.innerHTML = html;
+  songQueue = items; // Update queue
+}
+
+// Fast video playback
+function playVideo(videoId, title, thumbnail) {
+  if (!apiReady || !player) return;
+  
+  try {
+    // Immediate UI update
+    updateNowPlaying(title, thumbnail);
+    
+    // Load video
+    player.loadVideoById(videoId);
+    
+    // Update current index
+    currentIndex = songQueue.findIndex(item => item.id.videoId === videoId);
+  } catch (error) {
+    console.error('Play error:', error);
+  }
+}
+
+// Instant UI updates
+function updateNowPlaying(title, thumbnail) {
+  const titleEl = getElement('song-title');
+  const thumbEl = getElement('song-thumbnail');
+  
+  if (titleEl) titleEl.textContent = title;
+  if (thumbEl && thumbnail) thumbEl.src = thumbnail;
+}
+
+function setCurrentSong(item) {
+  const title = item.snippet.title;
+  const thumbnail = item.snippet.thumbnails.medium?.url;
+  updateNowPlaying(title, thumbnail);
+  
+  // Cue the first song
+  if (apiReady && player) {
+    try {
+      player.cueVideoById(item.id.videoId);
+    } catch (error) {
+      console.error('Cue error:', error);
+    }
+  }
+}
+
+// Navigation functions
+function playNext() {
+  if (songQueue.length === 0) return;
+  
+  currentIndex = (currentIndex + 1) % songQueue.length;
+  const nextSong = songQueue[currentIndex];
+  
+  if (nextSong) {
+    playVideo(
+      nextSong.id.videoId,
+      nextSong.snippet.title,
+      nextSong.snippet.thumbnails.medium?.url
+    );
+  }
+}
+
+function playPrevious() {
+  if (songQueue.length === 0) return;
+  
+  currentIndex = currentIndex <= 0 ? songQueue.length - 1 : currentIndex - 1;
+  const prevSong = songQueue[currentIndex];
+  
+  if (prevSong) {
+    playVideo(
+      prevSong.id.videoId,
+      prevSong.snippet.title,
+      prevSong.snippet.thumbnails.medium?.url
+    );
+  }
+}
+
+// UI State management
+function showLoading() {
+  const container = getElement('results');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
+}
+
+function showError() {
+  const container = getElement('results');
+  container.innerHTML = '<div class="loading">Failed to load. Please try again.</div>';
+}
+
+// Utility functions
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Tab switching - instant
+function switchTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    tab.classList.remove('active');
   });
   
-  document.getElementById("search").addEventListener("input", debouncedSearch);
+  // Show target tab
+  const targetTab = getElement(`tab-${tabName}`);
+  if (targetTab) {
+    targetTab.classList.add('active');
+  }
   
-  document.getElementById("search").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const q = e.target.value.trim();
-      if (q) loadSongs(q, false);
+  // Update nav buttons
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.tab === tabName) {
+      btn.classList.add('active');
     }
   });
+}
 
-  // Preload random set
-  const randomQuery = PRELOAD_QUERIES[Math.floor(Math.random() * PRELOAD_QUERIES.length)];
+// Event listeners - optimized
+document.addEventListener('DOMContentLoaded', function() {
+  // Search functionality
+  const searchBtn = getElement('search-btn');
+  const searchInput = getElement('search');
+  
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => handleSearch());
+  }
+  
+  if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleSearch();
+      }
+    });
+    
+    // Real-time search with debouncing
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim();
+      if (query.length > 2) { // Only search after 3 characters
+        handleSearch(query);
+      }
+    });
+  }
+  
+  // Tab navigation
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      switchTab(tab);
+    });
+  });
+  
+  // Feedback form
+  const feedbackForm = getElement('feedback-form');
+  if (feedbackForm) {
+    feedbackForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const statusEl = getElement('feedback-status');
+      if (statusEl) {
+        statusEl.textContent = 'Thanks for your feedback!';
+      }
+      feedbackForm.reset();
+    });
+  }
+  
+  // Load initial content immediately
+  const randomQuery = QUICK_QUERIES[Math.floor(Math.random() * QUICK_QUERIES.length)];
   setTimeout(() => loadSongs(randomQuery), 100);
 });
 
-// Optimized loading with better error handling
-function loadSongs(query, resetPlayer = true){
-  showLoading();
-
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=18&q=${encodeURIComponent(query)}&type=video&key=${apiKey}`;
-
-  fetch(url)
-    .then(r => {
-      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
-      return r.json();
-    })
-    .then(data => {
-      const items = data.items || [];
-      requestAnimationFrame(() => {
-        renderGrid(items);
-        if (resetPlayer) { 
-          setQueue(items, false); 
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  // Only when not typing in input
+  if (e.target.tagName === 'INPUT') return;
+  
+  switch(e.code) {
+    case 'Space':
+      e.preventDefault();
+      if (player && apiReady) {
+        const state = player.getPlayerState();
+        if (state === YT.PlayerState.PLAYING) {
+          player.pauseVideo();
+        } else {
+          player.playVideo();
         }
-        // Autoplay the first result into the top music box
-        if (items.length){
-          const first = items[0];
-          const vid = getVideoId(first);
-          const title = first.snippet?.title || "Untitled";
-          const thumb = first.snippet?.thumbnails?.high?.url || first.snippet?.thumbnails?.medium?.url;
-          updateNowPlaying(title, thumb);
-          if (apiReady && player) {
-            player.cueVideoById(vid);
-          }
-        }
-      });
-    })
-    .catch(err => {
-      console.error("Fetch error:", err);
-      document.getElementById("results").innerHTML = `<div class="loading"><span>Could not load songs. Please try again.</span></div>`;
-    });
-}
-
-// Optimized grid rendering with lazy loading concept
-function renderGrid(items){
-  const container = document.getElementById("results");
-  container.innerHTML = "";
-
-  if (!items.length){
-    container.innerHTML = '<div class="loading"><span>No results.</span></div>';
-    return;
+      }
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      playNext();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      playPrevious();
+      break;
   }
-
-  // Fragment for better performance
-  const fragment = document.createDocumentFragment();
-
-  items.forEach((item, index) => {
-    const vid = getVideoId(item);
-    const title = item.snippet?.title || "Untitled";
-    const thumb = item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url;
-
-    const card = document.createElement("div");
-    card.className = "card";
-    card.style.animationDelay = `${index * 0.05}s`;
-    
-    card.innerHTML = `
-      <img class="thumb loading" src="${thumb}" alt="${escapeHtml(title)}" loading="lazy" />
-      <div class="info"><h3 class="title">${escapeHtml(title)}</h3></div>
-    `;
-    
-    // Optimized click handler
-    card.addEventListener("click", () => { 
-      songQueue = items.slice(); 
-      playAtIndex(items.indexOf(item), true); 
-    }, { passive: true });
-
-    // Image load optimization
-    const img = card.querySelector('.thumb');
-    img.addEventListener('load', () => {
-      img.classList.remove('loading');
-    }, { once: true });
-
-    fragment.appendChild(card);
-  });
-
-  container.appendChild(fragment);
-}
-
-function getVideoId(item){
-  return item?.id?.videoId || item?.id;
-}
-
-function showLoading(){
-  const container = document.getElementById("results");
-  container.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
-}
-
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
-  })[s]);
-}
-
-// Optimized tab switching with smooth transitions
-document.querySelectorAll(".nav-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const tab = btn.dataset.tab;
-    
-    // Remove active class from all tabs
-    document.querySelectorAll(".tab-content").forEach(c => {
-      c.classList.remove("active");
-    });
-    
-    // Add active class to target tab with slight delay for smooth transition
-    requestAnimationFrame(() => {
-      document.getElementById(`tab-${tab}`).classList.add("active");
-    });
-  }, { passive: true });
 });
 
-// Feedback form (no backend, just a message)
-const fbForm = document.getElementById("feedback-form");
-if (fbForm){
-  fbForm.addEventListener("submit", function(e){
-    e.preventDefault();
-    const statusEl = document.getElementById("feedback-status");
-    statusEl.style.opacity = '0';
-    setTimeout(() => {
-      statusEl.innerText = "Thanks for your feedback!";
-      statusEl.style.opacity = '1';
-    }, 200);
-    this.reset();
-  });
-}
-
-// Intersection Observer for better performance on scroll
-if ('IntersectionObserver' in window) {
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-      }
-    });
-  }, { threshold: 0.1 });
-
-  // Observe cards as they're created
-  const observeCards = () => {
-    document.querySelectorAll('.card:not(.observed)').forEach(card => {
-      observer.observe(card);
-      card.classList.add('observed');
-    });
-  };
-
-  // Call after grid renders
-  setTimeout(observeCards, 500);
-}
-
-// Optimize requestAnimationFrame usage
-let rafId = null;
-function optimizedRender(callback) {
-  if (rafId) cancelAnimationFrame(rafId);
-  rafId = requestAnimationFrame(callback);
-}
-
 // Performance monitoring
-if ('performance' in window) {
+if (window.performance) {
   window.addEventListener('load', () => {
     setTimeout(() => {
       const perfData = performance.getEntriesByType('navigation')[0];
-      console.log(`Page load time: ${perfData.loadEventEnd - perfData.fetchStart}ms`);
+      if (perfData) {
+        console.log(`Page loaded in ${Math.round(perfData.loadEventEnd - perfData.fetchStart)}ms`);
+      }
     }, 0);
   });
 }
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  if (player) player.destroy();
+});
+
+// Global functions for onclick handlers
+window.playVideo = playVideo;
+window.playNext = playNext;
+window.playPrevious = playPrevious;
