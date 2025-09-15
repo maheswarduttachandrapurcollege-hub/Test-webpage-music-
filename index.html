@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Vibe – Taste Your Tune</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="top-nav">
+      <div class="nav-left">
+        <h1 class="brand">My Vibe</h1>
+        <p class="tagline">Taste Your Tune</p>
+      </div>
+      <div class="nav-right">
+        <button class="nav-btn" data-tab="home">Home</button>
+        <button class="nav-btn" data-tab="about">About</button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Home Tab -->
+  <div id="tab-home" class="tab-content active">
+    <section class="music-box">
+      <div class="now-playing">
+        <img id="song-thumbnail" src="https://i.imgur.com/7QZ8xQp.png" alt="Cover" class="cover" />
+        <div class="meta">
+          <div class="label">Now Playing</div>
+          <h2 id="song-title">Pick a track or try search below</h2>
+        </div>
+      </div>
+      <div class="player-frame">
+        <div class="iframe-wrap">
+          <div id="yt-player"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="search-area">
+      <div class="search-bar">
+        <input id="search" type="text" placeholder="Search any song, artist, or mood…" />
+        <button id="search-btn" aria-label="Search">Search</button>
+      </div>
+    </section>
+
+    <main>
+      <div id="results" class="grid"></div>
+    </main>
+  </div>
+
+  <!-- About Tab -->
+  <div id="tab-about" class="tab-content">
+    <section class="about-section">
+      <h2>About Me</h2>
+      <p>Hello! I'm the creator of <strong>My Vibe</strong>, a free and stylish music streaming webpage where you can explore songs of every genre and generation. Enjoy your favorite tunes without downloads – just search and play!</p>
+      
+      <h2>About This Site</h2>
+      <p>This site uses the official YouTube embed player to stream songs directly from YouTube. No files are stored here – everything is streamed for your listening pleasure.</p>
+    </section>
+
+    <section class="feedback-section">
+      <h2>Send Feedback</h2>
+      <form id="feedback-form">
+        <input type="text" name="name" placeholder="Your Name" required>
+        <input type="email" name="email" placeholder="Your Email" required>
+        <textarea name="message" placeholder="Your Message" required></textarea>
+        <button type="submit">Send Feedback</button>
+      </form>
+      <p id="feedback-status"></p>
+    </section>
+  </div>
+
+  <footer class="site-footer">
+    <small>Powered by YouTube • This site streams via the official embed player.</small>
+  </footer>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="app.js"></script>
+</body>
+</html>
